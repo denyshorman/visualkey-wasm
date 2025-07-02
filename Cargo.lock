@@ -138,11 +138,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "find-rare-key"
-version = "1.0.1"
+name = "find-rare-keys"
+version = "1.0.0"
 dependencies = [
  "getrandom",
- "hex",
  "k256",
  "rand",
  "serde",
@@ -185,12 +184,6 @@ dependencies = [
  "rand_core",
  "subtle",
 ]
-
-[[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hmac"
