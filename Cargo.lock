@@ -139,7 +139,7 @@ dependencies = [
 
 [[package]]
 name = "find-rare-keys"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "getrandom",
  "k256",

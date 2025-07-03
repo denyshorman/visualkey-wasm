@@ -1,6 +1,6 @@
 [package]
 name = "find-rare-keys"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 description = "A WebAssembly (WASM) module for generating and searching for rare secp256k1 cryptographic keys, designed for integration with the VisualKey app."
 license = "MIT"

@@ -23,21 +23,25 @@ pub struct RareKey {
     pub level: u8,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivateKeyAndAddress {
+    pub private_key: [u8; 32],
+    pub address: [u8; 20],
+}
+
 #[inline]
 fn is_in_range(bytes: &[u8; 32]) -> bool {
     bytes >= &PK_MIN && bytes < &PK_MAX
 }
 
-#[inline]
-fn pk_to_address(bytes: &[u8; 32]) -> [u8; 20] {
-    let private_key = k256::SecretKey::from_slice(bytes).unwrap();
+fn pk_to_address(pk_bytes: &[u8; 32], addr_bytes: &mut [u8; 20]) {
+    let private_key = k256::SecretKey::from_slice(pk_bytes).unwrap();
     let public_key = private_key.public_key();
     let verifying_key = VerifyingKey::from(public_key).to_encoded_point(false);
     let public_key_bytes = verifying_key.as_bytes();
     let hash = Keccak256::digest(&public_key_bytes[1..]);
-    let mut address = [0u8; 20];
-    address.copy_from_slice(&hash[12..]);
-    address
+    addr_bytes.copy_from_slice(&hash[12..]);
 }
 
 #[inline]
@@ -60,6 +64,7 @@ fn calculate_level(address: &[u8; 20]) -> u8 {
 pub fn generate_rare_keys_batch(level_threshold: u8, batch_size: u32) -> JsValue {
     let mut found_keys = Vec::with_capacity(32);
     let mut pk_bytes = [0u8; 32];
+    let mut addr_bytes = [0u8; 20];
     let mut i = 0;
 
     while i < batch_size {
@@ -69,13 +74,14 @@ pub fn generate_rare_keys_batch(level_threshold: u8, batch_size: u32) -> JsValue
             continue;
         }
 
-        let address_bytes = pk_to_address(&pk_bytes);
-        let level = calculate_level(&address_bytes);
+        pk_to_address(&pk_bytes, &mut addr_bytes);
+
+        let level = calculate_level(&addr_bytes);
 
         if level >= level_threshold {
             found_keys.push(RareKey {
                 private_key: pk_bytes,
-                address: address_bytes,
+                address: addr_bytes,
                 level,
             });
         }
@@ -84,4 +90,52 @@ pub fn generate_rare_keys_batch(level_threshold: u8, batch_size: u32) -> JsValue
     }
 
     serde_wasm_bindgen::to_value(&found_keys).unwrap()
+}
+
+#[wasm_bindgen]
+pub fn find_address_with_mask(mask: &[u8]) -> JsValue {
+    if mask.len() != 44 {
+        return JsValue::NULL;
+    }
+
+    let value_mask = &mask[..20];
+    let care_mask = &mask[20..40];
+    let batch_size = u32::from_be_bytes(mask[40..44].try_into().unwrap());
+
+    let mut pk_bytes = [0u8; 32];
+    let mut addr_bytes = [0u8; 20];
+    let mut i = 0;
+
+    while i < batch_size {
+        OsRng.fill_bytes(&mut pk_bytes);
+
+        if !is_in_range(&pk_bytes) {
+            continue;
+        }
+
+        pk_to_address(&pk_bytes, &mut addr_bytes);
+
+        let mut j = 0;
+
+        while j < 20 {
+            if (addr_bytes[j] & care_mask[j]) != (value_mask[j] & care_mask[j]) {
+                break;
+            }
+
+            j += 1;
+        }
+
+        if j == 20 {
+            let found = PrivateKeyAndAddress {
+                private_key: pk_bytes,
+                address: addr_bytes,
+            };
+
+            return serde_wasm_bindgen::to_value(&found).unwrap();
+        }
+
+        i += 1;
+    }
+
+    JsValue::NULL
 }
